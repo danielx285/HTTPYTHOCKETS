@@ -1,6 +1,8 @@
 import socket
 import db
 import json
+from socket_interface import SocketInterface
+
 
 def encaminha(msg):
 
@@ -14,7 +16,7 @@ def encaminha(msg):
         return db.inserir_livro(msg["parametro"])
 
     if msg["tipo_query"] == 'altera_livro':
-        return db.altera_livro(msg["parametro"]["id"] ,msg["parametro"])
+        return db.altera_livro(msg["parametro"]["id"], msg["parametro"])
 
     if msg["tipo_query"] == 'deleta_livro':
         return db.deleta_livro(msg["parametro"])
@@ -23,35 +25,29 @@ def encaminha(msg):
         return db.deleta_livros()
 
 
-def uni_msg(partes_msg):
+class SocketServer(SocketInterface):
 
-    msg_final = ''
-    for parte in partes_msg:
-        msg_final += parte.decode()
-    print(msg_final)
-    return json.loads(msg_final)
-
-
-class SocketServer:
     HOST = '127.0.0.1'
     PORT = 14340
 
     def __init__(self):
-        print("Aa")
         # Definição de Objeto socktet INET STREAM
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Associação do host e porta ao objeto socket
         self.sock.bind((SocketServer.HOST, SocketServer.PORT))
+        self.conec_associada = None
+        self.endereco_associado = None
 
     def start(self):
         self.sock.listen()
         while True:
-            self.conec_associada, self.endereco_associado  =  self.sock.accept()
-            retorno = uni_msg(self.severreceive())
-            print(encaminha(retorno))
+            self.conec_associada, self.endereco_associado = self.sock.accept()
+            retorno = self.receive()
+            self.send(msg=retorno)
+            print(encaminha(json.loads(retorno)))
             self.conec_associada.close()
 
-    def severreceive(self):
+    def receive(self) -> bytes:
         partes = []
         while True:
             dados = self.conec_associada.recv(1024)
@@ -59,29 +55,32 @@ class SocketServer:
                 break
             partes.append(dados)
 
-        return  partes
+        return b''.join(partes)
+
+    def send(self, msg) -> None:
+        return self.sock.sendall(msg)
 
 
 MeuSocket = SocketServer()
 print(dir(MeuSocket))
 MeuSocket.start()
 
-teste1 = {"tipo_query" : 'get_livros'}
+teste1 = {"tipo_query": 'get_livros'}
 
-teste2 = {"tipo_query" : 'get_livros', "parametro" : 1}
+teste2 = {"tipo_query": 'get_livros', "parametro": 1}
 
-teste3 = {"tipo_query" : 'inserir_livro',
-          "parametro" : {"id" : 1,
-                         "titulo" : "Senhor dos aneis",
-                         "preco" : 50}
+teste3 = {"tipo_query": 'inserir_livro',
+          "parametro": {"id": 1,
+                         "titulo": "Senhor dos aneis",
+                         "preco": 50}
           }
 
-teste4 = {"tipo_query" : 'altera_livro',
-          "parametro" : {"id" : 1,
-                         "titulo" : "Senhor dos aneis",
-                         "preco" : 50}
+teste4 = {"tipo_query": 'altera_livro',
+          "parametro": {"id": 1,
+                         "titulo": "Senhor dos aneis",
+                         "preco": 50}
           }
 
-teste5 = {"tipo_query" : 'deleta_livro', "parametro" : 1}
+teste5 = {"tipo_query": 'deleta_livro', "parametro": 1}
 
-teste6 = {"tipo_query" : 'deleta_livros'}
+teste6 = {"tipo_query": 'deleta_livros'}
